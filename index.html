@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adam Dynamics Visualizer</title>
+<script>
+MathJax = { tex:{ inlineMath:[['\\(','\\)']], displayMath:[['\\[','\\]']] }, svg:{ fontCache:'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script" async></script>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+:root, [data-theme="dark"]{ --bg:#0f1117; --panel:#181c26; --sub:#12151d; --ink:#e8e6df; --muted:#a9a496; --accent:#c9a45c; --accent2:#7fb2c9; --line:#2a2f3d; --green:#57d38c; --mag:#d67ad6; --blue:#6fa8ff;}
+[data-theme="light"]{ --bg:#f5f3ec; --panel:#ffffff; --sub:#f0eee6; --ink:#1e2230; --muted:#5c6270; --accent:#9a6b1f; --accent2:#2b6f8c; --line:#d8d4c8; --green:#1f9d57; --mag:#a534a5; --blue:#2b5fb0;}
+*{box-sizing:border-box;}
+body{ margin:0; background:var(--bg); color:var(--ink);
+  font-family: Cambria, 'Cambria Math', 'Gentium Book Plus', 'Charter', 'Palatino Linotype', 'Book Antiqua', serif; line-height:1.55; transition:background .2s,color .2s; }
+header{ padding:34px 24px 20px; text-align:center; border-bottom:1px solid var(--line); position:relative; }
+header h1{ font-size:2rem; margin:0 0 6px; color:var(--accent); }
+header p{ color:var(--muted); margin:0; font-size:.98rem; }
+#themeBtn{ position:absolute; top:20px; right:24px; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; font-family:inherit; font-size:.85rem; }
+.wrap{ max-width:1800px; margin:0 auto; padding:22px; }
+.panel{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin-bottom:20px; }
+.formula{ background:var(--sub); border:1px solid var(--line); border-radius:8px; padding:12px 18px; margin-bottom:18px; color:var(--muted); font-size:.95rem; overflow-x:auto; }
+.formula b{ color:var(--accent2); }
+.row{ display:grid; gap:16px 26px; margin-bottom:16px; }
+.row.r3{ grid-template-columns:repeat(3,1fr); }
+.row.r2{ grid-template-columns:repeat(2,1fr); }
+.ctl{ display:flex; flex-direction:column; gap:5px; }
+.ctl label{ font-size:.85rem; color:var(--accent2); font-weight:600; }
+.ctl input{ background:var(--sub); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:7px 9px; font-size:.92rem; font-family:'Cambria Math', Cambria, serif; }
+.ctl input[type=range]{ padding:0; accent-color:var(--accent); }
+.sliderline{ display:flex; align-items:center; gap:10px; }
+.sliderline input[type=range]{ flex:1; }
+.sliderline input[type=text]{ width:78px; text-align:right; }
+.icgrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.btnrow{ display:flex; gap:14px; align-items:center; margin-top:6px; flex-wrap:wrap;}
+button.act{ background:var(--accent); color:#1a1400; border:none; border-radius:8px; padding:10px 22px; font-size:.95rem; font-weight:700; cursor:pointer; font-family:inherit; }
+button.act:hover{ filter:brightness(1.08); }
+#status{ color:var(--muted); font-size:.88rem; }
+.plots{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.plotcard{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px; }
+.plotcard h3{ text-align:center; color:var(--accent2); font-size:1.05rem; margin:8px 0 0; }
+.plot{ width:100%; height:640px; }
+@media(max-width:1200px){ .plots{ grid-template-columns:1fr; } .row.r3,.row.r2{ grid-template-columns:1fr; } .plot{ height:520px; } }
+</style>
+</head>
+<body>
+<header>
+  <button id="themeBtn">Switch to light mode</button>
+  <h1>Adam Dynamics Visualizer</h1>
+  <p>Side-by-side 3-D phase portraits of position \(x'\), first moment \(m'\), and second moment \(v'\), in rescaled coordinates.</p>
+</header>
+
+<div class="wrap">
+<div class="panel">
+  <div class="formula">
+    <b>Loss.</b> Adam is run on the quadratic loss
+    \[ f(x)=\tfrac12\,x^\top A x,\qquad \nabla f(x)=A x, \]
+    where the loss matrix is a diagonal spectrum rotated by three Euler angles,
+    \[ A=Q\,\Lambda\,Q^\top,\quad \Lambda=\operatorname{diag}(\lambda_1,\lambda_2,\lambda_3),\quad Q=R_z(\theta_z)R_y(\theta_y)R_x(\theta_x). \]
+    <br><br>
+    <b>Map (unscaled coordinates).</b> With learning rate \(h\), decays \(\beta_1,\beta_2\), stabilizer \(\varepsilon\) (all component-wise):
+    \[ m_{n+1}=\beta_1 m_n+(1-\beta_1)\nabla f(x_n),\quad
+       v_{n+1}=\beta_2 v_n+(1-\beta_2)\big(\nabla f(x_n)\big)^2, \]
+    \[ x_{n+1}=x_n-\dfrac{h\,m_{n+1}}{\sqrt{v_{n+1}}+\varepsilon}. \]
+    <br>
+    <b>Map (rescaled coordinates).</b> Writing \(x'=x/h\), \(m'=m/h\), \(v'=\sqrt{v}/h\), the same dynamics become
+    \[ m'_{n+1}=\beta_1 m'_n+(1-\beta_1)\nabla f(x'_n),\qquad
+       v'_{n+1}=\sqrt{\,\beta_2\,v_n'^{2}+(1-\beta_2)\big(\nabla f(x'_n)\big)^2\,}, \]
+    \[ x'_{n+1}=x'_n-\dfrac{m'_{n+1}}{v'_{n+1}+\varepsilon/h}. \]
+    The plots and initial-condition inputs use these rescaled variables \((x',m',v')=(x/h,\ m/h,\ \sqrt{V}/h)\). The learning-rate field is in units of \(10^{-6}\).
+  </div>
+
+  <div class="row r3">
+    <div class="ctl">
+      <label>&beta;&#8321; (first-moment decay)</label>
+      <div class="sliderline">
+        <input type="range" id="beta1" min="0" max="1" step="0.0001" value="0.9">
+        <input type="text" id="beta1_t" value="0.9">
+      </div>
+    </div>
+    <div class="ctl">
+      <label>&beta;&#8322; (second-moment decay)</label>
+      <div class="sliderline">
+        <input type="range" id="beta2" min="0" max="1" step="0.0001" value="0.98">
+        <input type="text" id="beta2_t" value="0.98">
+      </div>
+    </div>
+    <div class="ctl"><label>&epsilon;</label><input type="text" id="eps" value="1e-7"></div>
+  </div>
+
+  <div class="row r3">
+    <div class="ctl"><label>Learning rate h (&times; 10⁻⁶)</label><input type="text" id="lr" value="1"></div>
+    <div class="ctl"><label>Warmup (burn-in) iterations</label><input type="text" id="warmup" value="200000"></div>
+    <div class="ctl"><label>Visualization points</label><input type="text" id="vispts" value="20000"></div>
+  </div>
+
+  <div class="row r3">
+    <div class="ctl">
+      <label>&theta;<sub>x</sub> (degrees)</label>
+      <div class="sliderline"><input type="range" id="tx" min="-180" max="180" step="0.5" value="60"><input type="text" id="tx_t" value="60"></div>
+    </div>
+    <div class="ctl">
+      <label>&theta;<sub>y</sub> (degrees)</label>
+      <div class="sliderline"><input type="range" id="ty" min="-180" max="180" step="0.5" value="-60"><input type="text" id="ty_t" value="-60"></div>
+    </div>
+    <div class="ctl">
+      <label>&theta;<sub>z</sub> (degrees)</label>
+      <div class="sliderline"><input type="range" id="tz" min="-180" max="180" step="0.5" value="-143.5"><input type="text" id="tz_t" value="-143.5"></div>
+    </div>
+  </div>
+
+  <div class="row r3">
+    <div class="ctl"><label>&lambda;&#8321;</label><input type="text" id="lam1" value="0.5"></div>
+    <div class="ctl"><label>&lambda;&#8322;</label><input type="text" id="lam2" value="0.8"></div>
+    <div class="ctl"><label>&lambda;&#8323;</label><input type="text" id="lam3" value="1.18"></div>
+  </div>
+
+  <div class="row r3">
+    <div class="ctl">
+      <label>Initial position x&#8320;&#8242; (rescaled)</label>
+      <div class="icgrid"><input type="text" id="x01" value="0.3"><input type="text" id="x02" value="0.4"><input type="text" id="x03" value="-0.3"></div>
+    </div>
+    <div class="ctl">
+      <label>Initial first moment m&#8320;&#8242; (rescaled)</label>
+      <div class="icgrid"><input type="text" id="m01" value="0.0"><input type="text" id="m02" value="0.0"><input type="text" id="m03" value="0.0"></div>
+    </div>
+    <div class="ctl">
+      <label>Initial second moment v&#8320;&#8242; (rescaled)</label>
+      <div class="icgrid"><input type="text" id="v01" value="0.2"><input type="text" id="v02" value="0.2"><input type="text" id="v03" value="0.2"></div>
+    </div>
+  </div>
+
+  <div class="row r2">
+    <div class="ctl"><label>Point size</label><input type="text" id="psize" value="1.5"></div>
+    <div class="ctl"><label>Alpha (opacity 0&ndash;1)</label><input type="text" id="alpha" value="0.8"></div>
+  </div>
+
+  <div class="btnrow"><button class="act" id="prefix1">Prefix 1</button><span id="status">Ready.</span></div>
+</div>
+
+<div class="plots">
+  <div class="plotcard"><h3>Position Dynamics (x&#8242;-Phase)</h3><div id="plotX" class="plot"></div></div>
+  <div class="plotcard"><h3>First-Moment Dynamics (m&#8242;-Phase)</h3><div id="plotM" class="plot"></div></div>
+  <div class="plotcard"><h3>Second-Moment Dynamics (v&#8242;-Phase)</h3><div id="plotV" class="plot"></div></div>
+</div>
+</div>
+
+<script>
+function matmul(A,B){var C=[[0,0,0],[0,0,0],[0,0,0]];for(var i=0;i<3;i++)for(var j=0;j<3;j++){var s=0;for(var k=0;k<3;k++)s+=A[i][k]*B[k][j];C[i][j]=s;}return C;}
+function transpose(A){return [[A[0][0],A[1][0],A[2][0]],[A[0][1],A[1][1],A[2][1]],[A[0][2],A[1][2],A[2][2]]];}
+function matvec(A,v){return [A[0][0]*v[0]+A[0][1]*v[1]+A[0][2]*v[2],A[1][0]*v[0]+A[1][1]*v[1]+A[1][2]*v[2],A[2][0]*v[0]+A[2][1]*v[1]+A[2][2]*v[2]];}
+
+function buildA(l1,l2,l3,txd,tyd,tzd){
+  var tx=txd*Math.PI/180, ty=tyd*Math.PI/180, tz=tzd*Math.PI/180;
+  var Rx=[[1,0,0],[0,Math.cos(tx),-Math.sin(tx)],[0,Math.sin(tx),Math.cos(tx)]];
+  var Ry=[[Math.cos(ty),0,Math.sin(ty)],[0,1,0],[-Math.sin(ty),0,Math.cos(ty)]];
+  var Rz=[[Math.cos(tz),-Math.sin(tz),0],[Math.sin(tz),Math.cos(tz),0],[0,0,1]];
+  var Q=matmul(Rz,matmul(Ry,Rx));
+  return matmul(Q,matmul([[l1,0,0],[0,l2,0],[0,0,l3]],transpose(Q)));
+}
+
+function simulate(p){
+  var A=buildA(p.l1,p.l2,p.l3,p.tx,p.ty,p.tz);
+  var h=p.h, eps=p.eps, b1=p.beta1, b2=p.beta2;
+  // rescaled gradient: grad f(h*x')/h = A x'  (linear, so equals A applied to x')
+  function sgrad(X){ var hx=[h*X[0],h*X[1],h*X[2]]; var g=matvec(A,hx); return [g[0]/h,g[1]/h,g[2]/h]; }
+  var X=[p.x01,p.x02,p.x03], M=[p.m01,p.m02,p.m03], V=[p.v01,p.v02,p.v03];
+  var total=p.warmup+p.vispts, start=p.warmup+1;
+  var Xh=[[],[],[]], Mh=[[],[],[]], Vh=[[],[],[]];
+  for(var n=1;n<=total;n++){
+    var g=sgrad(X);
+    var Mn=[b1*M[0]+(1-b1)*g[0], b1*M[1]+(1-b1)*g[1], b1*M[2]+(1-b1)*g[2]];
+    var Vn=[Math.sqrt(b2*V[0]*V[0]+(1-b2)*g[0]*g[0]),
+            Math.sqrt(b2*V[1]*V[1]+(1-b2)*g[1]*g[1]),
+            Math.sqrt(b2*V[2]*V[2]+(1-b2)*g[2]*g[2])];
+    var Xn=[X[0]-Mn[0]/(Vn[0]+eps/h),
+            X[1]-Mn[1]/(Vn[1]+eps/h),
+            X[2]-Mn[2]/(Vn[2]+eps/h)];
+    X=Xn; M=Mn; V=Vn;
+    if(n>=start){ Xh[0].push(X[0]);Xh[1].push(X[1]);Xh[2].push(X[2]);
+                  Mh[0].push(M[0]);Mh[1].push(M[1]);Mh[2].push(M[2]);
+                  Vh[0].push(V[0]);Vh[1].push(V[1]);Vh[2].push(V[2]); }
+  }
+  return {Xh:Xh,Mh:Mh,Vh:Vh};
+}
+
+function axisRange(arr){
+  var mn=Infinity, mx=-Infinity;
+  for(var i=0;i<arr.length;i++){ var v=arr[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+  if(!isFinite(mn)||!isFinite(mx)){ return [-1,1]; }
+  var c=(mn+mx)/2, span=mx-mn;
+  var pad = span>1e-9 ? span*0.08 : Math.max(Math.abs(c)*0.1, 0.5);
+  return [mn-pad, mx+pad];
+}
+
+function themeColors(){
+  var s=getComputedStyle(document.documentElement);
+  return {paper:s.getPropertyValue('--panel').trim(), sub:s.getPropertyValue('--sub').trim(),
+          ink:s.getPropertyValue('--ink').trim(), line:s.getPropertyValue('--line').trim(),
+          green:s.getPropertyValue('--green').trim(), mag:s.getPropertyValue('--mag').trim(),
+          blue:s.getPropertyValue('--blue').trim()};
+}
+function scene(labels,data,C){
+  var rx=axisRange(data[0]), ry=axisRange(data[1]), rz=axisRange(data[2]);
+  return {
+    xaxis:{title:labels[0],range:rx,gridcolor:C.line,zerolinecolor:C.line,backgroundcolor:C.sub,showbackground:true,showticklabels:false},
+    yaxis:{title:labels[1],range:ry,gridcolor:C.line,zerolinecolor:C.line,backgroundcolor:C.sub,showbackground:true,showticklabels:false},
+    zaxis:{title:labels[2],range:rz,gridcolor:C.line,zerolinecolor:C.line,backgroundcolor:C.sub,showbackground:true,showticklabels:false},
+    aspectmode:'cube', camera:{eye:{x:1.5,y:-1.9,z:1.1}}
+  };
+}
+
+var lastRes=null, lastPs=1.5, lastAlpha=0.8;
+function draw(res,ps,alpha){
+  lastRes=res; lastPs=ps; lastAlpha=alpha;
+  var C=themeColors();
+  var common={paper_bgcolor:C.paper,font:{color:C.ink,family:'Cambria, serif'},margin:{l:0,r:0,t:0,b:0}};
+  Plotly.react('plotX',[{type:'scatter3d',mode:'markers',x:res.Xh[0],y:res.Xh[1],z:res.Xh[2],
+    marker:{size:ps,color:C.green,opacity:alpha}}],
+    Object.assign({scene:scene(['x\u2081\u2032','x\u2082\u2032','x\u2083\u2032'],res.Xh,C)},common),{responsive:true});
+  Plotly.react('plotM',[{type:'scatter3d',mode:'markers',x:res.Mh[0],y:res.Mh[1],z:res.Mh[2],
+    marker:{size:ps,color:C.blue,opacity:alpha}}],
+    Object.assign({scene:scene(['m\u2081\u2032','m\u2082\u2032','m\u2083\u2032'],res.Mh,C)},common),{responsive:true});
+  Plotly.react('plotV',[{type:'scatter3d',mode:'markers',x:res.Vh[0],y:res.Vh[1],z:res.Vh[2],
+    marker:{size:ps,color:C.mag,opacity:alpha}}],
+    Object.assign({scene:scene(['v\u2081\u2032','v\u2082\u2032','v\u2083\u2032'],res.Vh,C)},common),{responsive:true});
+}
+
+function num(id){return parseFloat(document.getElementById(id).value);}
+function readParams(){
+  return { beta1:num('beta1'), beta2:num('beta2'), h:num('lr')*1e-6, eps:num('eps'),
+    l1:num('lam1'), l2:num('lam2'), l3:num('lam3'),
+    tx:num('tx'), ty:num('ty'), tz:num('tz'),
+    x01:num('x01'), x02:num('x02'), x03:num('x03'),
+    m01:num('m01'), m02:num('m02'), m03:num('m03'),
+    v01:num('v01'), v02:num('v02'), v03:num('v03'),
+    warmup:parseInt(document.getElementById('warmup').value,10),
+    vispts:parseInt(document.getElementById('vispts').value,10) };
+}
+
+function link(slider,text){
+  document.getElementById(slider).addEventListener('input',function(){document.getElementById(text).value=this.value; scheduleRun();});
+  document.getElementById(text).addEventListener('input',function(){var v=parseFloat(this.value); if(isFinite(v)){document.getElementById(slider).value=v;} scheduleRun();});
+}
+
+var timer=null;
+function scheduleRun(){
+  var st=document.getElementById('status'); st.textContent='Simulating...';
+  if(timer) clearTimeout(timer);
+  timer=setTimeout(function(){
+    var p=readParams();
+    if(!isFinite(p.beta1)||!isFinite(p.beta2)||!isFinite(p.h)||p.h===0||!isFinite(p.eps)||!p.warmup||!p.vispts){ st.textContent='Waiting for valid input...'; return; }
+    var ps=num('psize'), alpha=num('alpha');
+    var t0=performance.now();
+    draw(simulate(p),ps,alpha);
+    st.textContent='Done: '+p.vispts+' points ('+(p.warmup+p.vispts)+' iters) in '+((performance.now()-t0)/1000).toFixed(2)+'s.';
+  },250);
+}
+
+link('beta1','beta1_t'); link('beta2','beta2_t'); link('tx','tx_t'); link('ty','ty_t'); link('tz','tz_t');
+['lr','eps','lam1','lam2','lam3','x01','x02','x03','m01','m02','m03','v01','v02','v03','warmup','vispts','psize','alpha'].forEach(function(id){
+  var el=document.getElementById(id); el.addEventListener('input',scheduleRun); el.addEventListener('change',scheduleRun);
+});
+
+document.getElementById('themeBtn').addEventListener('click',function(){
+  var cur=document.documentElement.getAttribute('data-theme');
+  var next=(cur==='dark')?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  this.textContent=(next==='dark')?'Switch to light mode':'Switch to dark mode';
+  if(lastRes) draw(lastRes,lastPs,lastAlpha);
+});
+
+document.getElementById('prefix1').addEventListener('click',function(){
+  var set={beta1:0.9,beta1_t:0.9,beta2:0.98,beta2_t:0.98,lr:'1',eps:'1e-7',
+    lam1:'0.5',lam2:'0.8',lam3:'1.18',
+    tx:60,tx_t:60,ty:-60,ty_t:-60,tz:-143.5,tz_t:-143.5,
+    x01:'0.3',x02:'0.4',x03:'-0.3',m01:'0.0',m02:'0.0',m03:'0.0',v01:'0.2',v02:'0.2',v03:'0.2',
+    psize:'1.5',alpha:'0.8',vispts:'20000',warmup:'200000'};
+  for(var k in set) document.getElementById(k).value=set[k];
+  scheduleRun();
+});
+
+window.addEventListener('load',scheduleRun);
+</script>
+</body>
+</html>

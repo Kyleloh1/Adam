@@ -83,8 +83,8 @@ button.act:hover{ filter:brightness(1.08); }
     <div class="ctl">
       <label>&beta;&#8322; (second-moment decay)</label>
       <div class="sliderline">
-        <input type="range" id="beta2" min="0" max="1" step="0.0001" value="0.98">
-        <input type="text" id="beta2_t" value="0.98">
+        <input type="range" id="beta2" min="0" max="1" step="0.0001" value="0.5">
+        <input type="text" id="beta2_t" value="0.5">
       </div>
     </div>
     <div class="ctl"><label>&epsilon;</label><input type="text" id="eps" value="1e-7"></div>
@@ -99,11 +99,11 @@ button.act:hover{ filter:brightness(1.08); }
   <div class="row r3">
     <div class="ctl">
       <label>&theta;<sub>x</sub> (degrees)</label>
-      <div class="sliderline"><input type="range" id="tx" min="-180" max="180" step="0.5" value="60"><input type="text" id="tx_t" value="60"></div>
+      <div class="sliderline"><input type="range" id="tx" min="-180" max="180" step="0.5" value="-106"><input type="text" id="tx_t" value="-106"></div>
     </div>
     <div class="ctl">
       <label>&theta;<sub>y</sub> (degrees)</label>
-      <div class="sliderline"><input type="range" id="ty" min="-180" max="180" step="0.5" value="-60"><input type="text" id="ty_t" value="-60"></div>
+      <div class="sliderline"><input type="range" id="ty" min="-180" max="180" step="0.5" value="-95.5"><input type="text" id="ty_t" value="-95.5"></div>
     </div>
     <div class="ctl">
       <label>&theta;<sub>z</sub> (degrees)</label>
@@ -273,9 +273,9 @@ document.getElementById('themeBtn').addEventListener('click',function(){
 });
 
 document.getElementById('prefix1').addEventListener('click',function(){
-  var set={beta1:0.9,beta1_t:0.9,beta2:0.98,beta2_t:0.98,lr:'1',eps:'1e-7',
+  var set={beta1:0.9,beta1_t:0.9,beta2:0.5,beta2_t:0.5,lr:'1',eps:'1e-7',
     lam1:'0.5',lam2:'0.8',lam3:'1.18',
-    tx:60,tx_t:60,ty:-60,ty_t:-60,tz:-143.5,tz_t:-143.5,
+    tx:-106,tx_t:-106,ty:-95.5,ty_t:-95.5,tz:-143.5,tz_t:-143.5,
     x01:'0.3',x02:'0.4',x03:'-0.3',m01:'0.0',m02:'0.0',m03:'0.0',v01:'0.2',v02:'0.2',v03:'0.2',
     psize:'1.5',alpha:'0.8',vispts:'20000',warmup:'200000'};
   for(var k in set) document.getElementById(k).value=set[k];

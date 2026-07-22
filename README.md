@@ -1,2 +1,2 @@
 # Adam
-Visualizer for the adaptive optimizer Adam. 
+Visualizer for the adaptive optimizer Adam. .
